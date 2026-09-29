@@ -39,7 +39,7 @@ jobs:
 
       - name: Install Capacitor Android
         run: |
-          npm install @capacitor/core @capacitor/cli @capacitor/android --no-audit --no-fund
+          npm install @capacitor/core @capacitor/cli @capacitor/android @capacitor/filesystem @capacitor/share --no-audit --no-fund
         timeout-minutes: 5
 
       - name: Add Android platform
