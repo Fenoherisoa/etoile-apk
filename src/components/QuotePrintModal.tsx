@@ -94,7 +94,7 @@ export const QuotePrintModal: React.FC<QuotePrintModalProps> = ({
             <div className="flex items-center gap-3">
               <div className="w-14 h-14 rounded-xl overflow-hidden bg-slate-900 border border-slate-300 p-0.5 shrink-0">
                 <img
-                  src="/src/assets/images/etoile_alu_logo_1790594544641.jpg"
+                  src="/src/assets/images/logo_etoile.png"
                   alt="Logo"
                   className="w-full h-full object-cover rounded-lg"
                   referrerPolicy="no-referrer"
