@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Wifi, WifiOff, Plus, Settings } from 'lucide-react';
 import { GlobalSettings } from '../types';
-import logoEtoile from './assets/images/logo_etoile.png';
+import logoEtoile from "../assets/images/logo_etoile.png";
 
 interface NavbarProps {
   settings: GlobalSettings;
