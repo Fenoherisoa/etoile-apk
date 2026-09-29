@@ -9,6 +9,7 @@ on:
 jobs:
   build-apk:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
 
     steps:
       - name: Checkout
@@ -18,19 +19,36 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
+          package-manager-cache: false
+
+      - name: Check project
+        run: |
+          node --version
+          npm --version
+          ls -la
+          echo "Checking package.json..."
+          cat package.json
 
       - name: Install dependencies
-        run: npm install
+        run: npm install --no-audit --no-fund
+        timeout-minutes: 8
 
       - name: Build web app
         run: npm run build
+        timeout-minutes: 5
+
+      - name: Install Capacitor Android
+        run: |
+          npm install @capacitor/core @capacitor/cli @capacitor/android --no-audit --no-fund
+        timeout-minutes: 5
 
       - name: Add Android platform
         run: npx cap add android
+        timeout-minutes: 5
 
       - name: Sync Capacitor
         run: npx cap sync android
+        timeout-minutes: 5
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -40,10 +58,12 @@ jobs:
 
       - name: Build APK
         working-directory: android
-        run: ./gradlew assembleDebug
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+        timeout-minutes: 12
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: ETOILE-ALU-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
