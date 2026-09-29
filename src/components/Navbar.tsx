@@ -38,7 +38,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       <div className="flex items-center gap-2.5">
         <div className="w-9 h-9 rounded-xl overflow-hidden border border-cyan-400/30 p-0.5 bg-gradient-to-tr from-[#082832] to-[#13677d] shrink-0">
           <img
-            src="/src/assets/images/etoile_alu_logo_1790594544641.jpg"
+            src="/src/assets/images/logo_etoile.png.jpg"
             alt="Logo"
             className="w-full h-full object-cover rounded-lg"
             referrerPolicy="no-referrer"
