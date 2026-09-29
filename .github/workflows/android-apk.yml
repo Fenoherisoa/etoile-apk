@@ -9,7 +9,7 @@ on:
 jobs:
   build-apk:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
@@ -44,6 +44,20 @@ jobs:
 
       - name: Add Android platform
         run: npx cap add android
+        timeout-minutes: 5
+
+      - name: Prepare ETOILE ALU icon
+        run: |
+          mkdir -p assets
+          cp src/assets/images/logo_etoile.png assets/icon.png
+          ls -lh assets/icon.png
+
+      - name: Install Capacitor Assets
+        run: npm install -D @capacitor/assets --no-audit --no-fund
+        timeout-minutes: 5
+
+      - name: Generate Android icon
+        run: npx capacitor-assets generate --android
         timeout-minutes: 5
 
       - name: Sync Capacitor
