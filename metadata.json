@@ -1,0 +1,6 @@
+{
+  "name": "ETOILE ALU - Devis & Menuiserie Aluminium",
+  "description": "Application mobile de calcul de devis, optimisation de coupe de barres et gestion client pour menuiserie aluminium ETOILE ALU.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
