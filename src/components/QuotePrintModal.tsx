@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Printer, Share2, Check } from 'lucide-react';
 import { Quote, GlobalSettings } from '../types';
 import { formatAriary } from '../utils/calculationEngine';
+import logoEtoile from "../assets/images/logo_etoile.png";
 
 interface QuotePrintModalProps {
   isOpen: boolean;
@@ -94,7 +95,7 @@ export const QuotePrintModal: React.FC<QuotePrintModalProps> = ({
             <div className="flex items-center gap-3">
               <div className="w-14 h-14 rounded-xl overflow-hidden bg-slate-900 border border-slate-300 p-0.5 shrink-0">
                 <img
-                  src="/src/assets/images/logo_etoile.png"
+                  src={logoEtoile}
                   alt="Logo"
                   className="w-full h-full object-cover rounded-lg"
                   referrerPolicy="no-referrer"
