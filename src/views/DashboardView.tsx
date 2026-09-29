@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { Client, Quote, ProductTemplate, ProfileReference, GlobalSettings } from '../types';
 import { formatAriary } from '../utils/calculationEngine';
+import atelier from "../assets/images/alu_workshop_banner_1790594559339.jpg";
 
 interface DashboardViewProps {
   clients: Client[];
@@ -47,7 +48,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       <div className="relative rounded-2xl overflow-hidden border border-cyan-800/40 bg-gradient-to-br from-[#0c3e4f] to-[#082832] p-5 shadow-xl text-white">
         <div className="absolute right-0 top-0 bottom-0 w-1/2 opacity-20 pointer-events-none overflow-hidden">
           <img
-            src="/src/assets/images/alu_workshop_banner_1790594559339.jpg"
+            src={atelier}
             alt="Atelier"
             className="w-full h-full object-cover"
             referrerPolicy="no-referrer"
