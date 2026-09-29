@@ -50,7 +50,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
         <div className="relative mb-6">
           <div className="w-28 h-28 rounded-2xl overflow-hidden shadow-2xl shadow-cyan-950/80 border-2 border-cyan-400/30 p-1 bg-gradient-to-tr from-[#082832] to-[#13677d] transform transition-transform duration-700 hover:scale-105">
             <img
-              src="/src/assets/images/etoile_alu_logo_1790594544641.jpg"
+              src="/src/assets/images/logo.png"
               alt="Logo Etoile Alu"
               className="w-full h-full object-cover rounded-xl"
               referrerPolicy="no-referrer"
