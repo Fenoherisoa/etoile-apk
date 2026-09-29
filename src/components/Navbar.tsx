@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Wifi, WifiOff, Plus, Settings } from 'lucide-react';
 import { GlobalSettings } from '../types';
+import logoEtoile from './assets/images/logo_etoile.png';
 
 interface NavbarProps {
   settings: GlobalSettings;
@@ -38,8 +39,8 @@ export const Navbar: React.FC<NavbarProps> = ({
       <div className="flex items-center gap-2.5">
         <div className="w-9 h-9 rounded-xl overflow-hidden border border-cyan-400/30 p-0.5 bg-gradient-to-tr from-[#082832] to-[#13677d] shrink-0">
           <img
-            src="/src/assets/images/logo_etoile.png"
-            alt="Logo"
+            src={logoEtoile}
+            alt="Etoile alu"
             className="w-full h-full object-cover rounded-lg"
             referrerPolicy="no-referrer"
           />
