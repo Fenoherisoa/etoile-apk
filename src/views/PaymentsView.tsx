@@ -36,6 +36,7 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<'receipts' | 'payments'>('receipts');
   const [searchQuery, setSearchQuery] = useState('');
+  const [errorNotification, setErrorNotification] = useState<string | null>(null);
   const [selectedReceipt, setSelectedReceipt] = useState<PaymentReceipt | null>(null);
 
   // New Payment state
@@ -68,7 +69,7 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
     // Pick the first quote that has balance remaining or validated
     const eligibleQuote = quotes.find((q) => (q.balanceRemainingAr ?? q.grandTotalAr) > 0) || quotes[0];
     if (!eligibleQuote) {
-      alert('Veuillez créer au moins un devis avant d enregistrer un paiement.');
+      setErrorNotification('Veuillez créer au moins un devis avant d’enregistrer un paiement.');
       return;
     }
     setSelectedQuoteForPayment(eligibleQuote);
@@ -82,6 +83,20 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({
 
   return (
     <div className="space-y-4 pb-20 max-w-4xl mx-auto">
+      {/* Notification banner */}
+      {errorNotification && (
+        <div className="p-3 bg-red-950/80 border border-red-500/50 rounded-xl text-red-200 text-xs flex items-center justify-between">
+          <span>{errorNotification}</span>
+          <button
+            type="button"
+            onClick={() => setErrorNotification(null)}
+            className="text-red-300 hover:text-white text-xs font-semibold px-2 py-0.5"
+          >
+            Fermer
+          </button>
+        </div>
+      )}
+
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>

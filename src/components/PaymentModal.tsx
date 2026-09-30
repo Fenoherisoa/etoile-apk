@@ -111,9 +111,14 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
           {/* Amount Input */}
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="text-slate-300 font-semibold">
-                Montant du paiement (Ar) <span className="text-red-400">*</span>
-              </label>
+              <div className="flex items-center gap-2">
+                <label className="text-slate-300 font-semibold">
+                  Montant du paiement (Ar) <span className="text-red-400">*</span>
+                </label>
+                <span className="text-emerald-400 font-bold font-mono text-xs">
+                  {formatAriary(amountAr)}
+                </span>
+              </div>
               <div className="flex items-center gap-1.5">
                 <button
                   type="button"
@@ -134,10 +139,10 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
             <input
               type="number"
-              min="1000"
-              step="5000"
+              min="1"
+              step="any"
               value={amountAr}
-              onChange={(e) => setAmountAr(parseInt(e.target.value, 10) || 0)}
+              onChange={(e) => setAmountAr(parseFloat(e.target.value) || 0)}
               className="w-full px-3 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white font-mono font-bold text-base focus:outline-none focus:border-cyan-500 tabular-nums min-h-[44px]"
               autoFocus
             />

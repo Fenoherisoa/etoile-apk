@@ -28,6 +28,9 @@ import {
   calculateDetailedProduct,
   formatAriary,
   formatNumber,
+  formatBarQuantity,
+  formatBarsWithUnit,
+  formatAmount,
 } from '../utils/calculationEngine';
 import { storageService } from '../services/storageService';
 import { BarCalculationExplanationModal } from '../components/BarCalculationExplanationModal';
@@ -85,6 +88,7 @@ export const QuoteEditorView: React.FC<QuoteEditorViewProps> = ({
   const [quoteItems, setQuoteItems] = useState<QuoteProductItem[]>(
     initialQuote?.items || []
   );
+  const [errorNotification, setErrorNotification] = useState<string | null>(null);
 
   // Active product modal
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
@@ -208,6 +212,15 @@ export const QuoteEditorView: React.FC<QuoteEditorViewProps> = ({
     setTempComponents(updated);
   };
 
+  const handleUpdateTempComponentPrice = (compIndex: number, newPrice: number) => {
+    const updated = [...tempComponents];
+    updated[compIndex] = {
+      ...updated[compIndex],
+      unitPriceAr: Math.max(0, newPrice),
+    };
+    setTempComponents(updated);
+  };
+
   // Save product to quote
   const handleSaveProductToQuote = () => {
     for (let i = 0; i < tempDimensions.length; i++) {
@@ -288,7 +301,7 @@ export const QuoteEditorView: React.FC<QuoteEditorViewProps> = ({
 
   const handleSaveEntireQuote = () => {
     if (quoteItems.length === 0) {
-      alert('Veuillez ajouter au moins un produit au devis.');
+      setErrorNotification('Veuillez ajouter au moins un produit au devis.');
       return;
     }
 
@@ -361,6 +374,19 @@ export const QuoteEditorView: React.FC<QuoteEditorViewProps> = ({
           </button>
         </div>
       </div>
+
+      {errorNotification && (
+        <div className="p-3 bg-red-950/80 border border-red-500/50 rounded-xl text-red-200 text-xs flex items-center justify-between">
+          <span>{errorNotification}</span>
+          <button
+            type="button"
+            onClick={() => setErrorNotification(null)}
+            className="text-red-300 hover:text-white text-xs font-semibold px-2 py-0.5"
+          >
+            Fermer
+          </button>
+        </div>
+      )}
 
       {/* Quote Metadata */}
       <div className="p-4 rounded-xl bg-slate-800/80 border border-slate-700/80 shadow-md space-y-3">
@@ -459,7 +485,7 @@ export const QuoteEditorView: React.FC<QuoteEditorViewProps> = ({
                             key={pIdx}
                             className="px-2 py-0.5 rounded bg-slate-900 border border-slate-700 text-[10px] text-cyan-300 font-mono"
                           >
-                            {p.categoryName} : {p.profileCode} ({p.barsNeeded} b.)
+                            {p.categoryName} : {p.profileCode} ({formatBarQuantity(p.barsNeeded)} b.)
                           </span>
                         ))}
                       </div>
@@ -472,7 +498,7 @@ export const QuoteEditorView: React.FC<QuoteEditorViewProps> = ({
                         title="Voir calepinage barre par barre"
                       >
                         <Sparkles className="w-3.5 h-3.5" />
-                        <span>Calepinage ({calc.totalBarsNeeded} b.)</span>
+                        <span>Calepinage ({formatBarQuantity(calc.totalBarsNeeded)} b.)</span>
                       </button>
 
                       <button
@@ -522,7 +548,7 @@ export const QuoteEditorView: React.FC<QuoteEditorViewProps> = ({
                   {/* Price Summary */}
                   <div className="p-3 rounded-lg bg-slate-900/60 border border-slate-700/50 text-xs space-y-1.5">
                     <div className="flex justify-between items-center text-slate-300">
-                      <span>Profilés aluminium ({calc.totalBarsNeeded} barres au total) :</span>
+                      <span>Profilés aluminium ({formatBarsWithUnit(calc.totalBarsNeeded)} au total) :</span>
                       <strong className="text-white tabular-nums">{formatAriary(calc.totalBarsCostAr)}</strong>
                     </div>
 
@@ -574,9 +600,9 @@ export const QuoteEditorView: React.FC<QuoteEditorViewProps> = ({
             <input
               type="number"
               min="0"
-              step="5000"
+              step="any"
               value={transportFeeAr}
-              onChange={(e) => setTransportFeeAr(Math.max(0, parseInt(e.target.value, 10) || 0))}
+              onChange={(e) => setTransportFeeAr(Math.max(0, parseFloat(e.target.value) || 0))}
               className="w-36 px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white font-bold text-sm text-right tabular-nums focus:outline-none focus:border-cyan-500"
             />
             <span className="text-xs font-bold text-slate-300">Ar</span>
@@ -599,9 +625,9 @@ export const QuoteEditorView: React.FC<QuoteEditorViewProps> = ({
             <input
               type="number"
               min="0"
-              step="5000"
+              step="any"
               value={discountAr}
-              onChange={(e) => setDiscountAr(Math.max(0, parseInt(e.target.value, 10) || 0))}
+              onChange={(e) => setDiscountAr(Math.max(0, parseFloat(e.target.value) || 0))}
               className="w-36 px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-amber-300 font-bold text-sm text-right tabular-nums focus:outline-none focus:border-amber-500"
             />
             <span className="text-xs font-bold text-slate-300">Ar</span>
@@ -873,7 +899,7 @@ export const QuoteEditorView: React.FC<QuoteEditorViewProps> = ({
                         </label>
 
                         {comp.enabled && (
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <select
                               value={comp.referenceId}
                               onChange={(e) => handleChangeComponentReference(cIdx, e.target.value)}
@@ -886,9 +912,18 @@ export const QuoteEditorView: React.FC<QuoteEditorViewProps> = ({
                               ))}
                             </select>
 
-                            <span className="text-slate-400 tabular-nums">
-                              {formatAriary(comp.unitPriceAr)} / {comp.unitType}
-                            </span>
+                            <div className="flex items-center gap-1 text-[11px] text-slate-300">
+                              <span>Prix :</span>
+                              <input
+                                type="number"
+                                min="0"
+                                step="any"
+                                value={comp.unitPriceAr}
+                                onChange={(e) => handleUpdateTempComponentPrice(cIdx, parseFloat(e.target.value) || 0)}
+                                className="w-24 px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700 text-emerald-400 font-mono font-bold text-xs text-right tabular-nums"
+                              />
+                              <span className="text-slate-400">Ar / {comp.unitType}</span>
+                            </div>
                           </div>
                         )}
                       </div>

@@ -1,7 +1,7 @@
 import React from 'react';
 import { X, Layers, Ruler, DollarSign, Sparkles, CheckCircle2 } from 'lucide-react';
 import { ProductCalculationResult } from '../types';
-import { formatAriary, formatNumber } from '../utils/calculationEngine';
+import { formatAriary, formatNumber, formatBarQuantity, formatBarsWithUnit } from '../utils/calculationEngine';
 
 interface BarCalculationExplanationModalProps {
   isOpen: boolean;
@@ -56,7 +56,7 @@ export const BarCalculationExplanationModal: React.FC<BarCalculationExplanationM
             <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 flex flex-col">
               <span className="text-[11px] text-slate-400">Total barres</span>
               <span className="text-base font-bold text-amber-300 tabular-nums">
-                {calc.totalBarsNeeded} {calc.totalBarsNeeded > 1 ? 'barres' : 'barre'}
+                {formatBarsWithUnit(calc.totalBarsNeeded)}
               </span>
             </div>
 
@@ -108,7 +108,7 @@ export const BarCalculationExplanationModal: React.FC<BarCalculationExplanationM
                     </span>
                     <span className="text-slate-500">·</span>
                     <span className="font-bold text-cyan-400">
-                      {pCalc.barsNeeded} barre(s) = {formatAriary(pCalc.barsCostAr)}
+                      {formatBarsWithUnit(pCalc.barsNeeded)} = {formatAriary(pCalc.barsCostAr)}
                     </span>
                   </div>
                 </div>
@@ -195,7 +195,7 @@ export const BarCalculationExplanationModal: React.FC<BarCalculationExplanationM
 
             <div className="space-y-1.5 text-slate-300">
               <div className="flex justify-between">
-                <span>Total profilés aluminium ({calc.totalBarsNeeded} barres) :</span>
+                <span>Total profilés aluminium ({formatBarsWithUnit(calc.totalBarsNeeded)}) :</span>
                 <strong className="text-white tabular-nums">{formatAriary(calc.totalBarsCostAr)}</strong>
               </div>
 

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Settings,
   Ruler,
@@ -18,8 +18,15 @@ import {
 } from 'lucide-react';
 import { GlobalSettings, Category, GlassType, CategoryUnit } from '../types';
 import { storageService } from '../services/storageService';
-import { formatAriary } from '../utils/calculationEngine';
+import { formatAriary, formatAmount } from '../utils/calculationEngine';
 import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
+
+function isCapacitorApp(): boolean {
+  return typeof window !== 'undefined' &&
+    !!(window as any).Capacitor?.isNativePlatform?.();
+}
 
 interface SettingsViewProps {
   settings: GlobalSettings;
@@ -47,6 +54,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [companyPhone, setCompanyPhone] = useState(settings.companyPhone);
   const [companyAddress, setCompanyAddress] = useState(settings.companyAddress);
   const [globalSavedToast, setGlobalSavedToast] = useState(false);
+
+  useEffect(() => {
+    setBarLengthMm(settings.standardBarLengthMm);
+    setBarPriceAr(settings.standardBarPriceAr);
+    setSawKerfMm(settings.sawKerfMm || 4);
+    setCompanyName(settings.companyName);
+    setCompanySubtitle(settings.companySubtitle);
+    setCompanyPhone(settings.companyPhone);
+    setCompanyAddress(settings.companyAddress);
+  }, [settings]);
 
   // Category modal
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
@@ -193,9 +210,57 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     URL.revokeObjectURL(url);
   };
 
-  const handleExportJSON = () => {
-    const json = storageService.createBackupJSON();
-    downloadFile(json, `etoile_alu_sauvegarde_${new Date().toISOString().split('T')[0]}.json`, 'application/json');
+  const handleExportJSON = async () => {
+    try {
+      const json = storageService.createBackupJSON();
+      const dateStr = new Date().toISOString().split('T')[0];
+      const filename = `ETOILE_ALU_BACKUP_${dateStr}.json`;
+
+      if (isCapacitorApp()) {
+        try {
+          const utf8Bytes = new TextEncoder().encode(json);
+          let binary = '';
+          const len = utf8Bytes.byteLength;
+          for (let i = 0; i < len; i++) {
+            binary += String.fromCharCode(utf8Bytes[i]);
+          }
+          const base64 = btoa(binary);
+
+          const result = await Filesystem.writeFile({
+            path: `ETOILE_ALU/${filename}`,
+            data: base64,
+            directory: Directory.Documents,
+            recursive: true,
+          });
+
+          await Share.share({
+            title: `Sauvegarde ETOILE ALU - ${dateStr}`,
+            text: `Fichier de sauvegarde ETOILE ALU (${filename})`,
+            files: [result.uri],
+            dialogTitle: `Enregistrer ou partager ${filename}`,
+          });
+
+          setImportStatus({
+            type: 'success',
+            message: `Sauvegarde ${filename} exportée et partagée avec succès !`,
+          });
+          return;
+        } catch (capErr) {
+          console.error('Erreur export Capacitor:', capErr);
+        }
+      }
+
+      downloadFile(json, filename, 'application/json;charset=utf-8;');
+      setImportStatus({
+        type: 'success',
+        message: `Sauvegarde ${filename} téléchargée avec succès !`,
+      });
+    } catch (err: unknown) {
+      setImportStatus({
+        type: 'error',
+        message: `Erreur lors de l'exportation: ${(err as Error).message}`,
+      });
+    }
   };
 
   const handleExportClientsCSV = () => {
@@ -223,20 +288,50 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       try {
         const text = event.target?.result as string;
         const parsed = JSON.parse(text);
-        if (parsed.clients && parsed.products) {
+
+        const hasValidStructure =
+          parsed &&
+          typeof parsed === 'object' &&
+          (Array.isArray(parsed.clients) ||
+           Array.isArray(parsed.products) ||
+           Array.isArray(parsed.quotes) ||
+           Array.isArray(parsed.profileReferences) ||
+           Array.isArray(parsed.references) ||
+           Array.isArray(parsed.categories) ||
+           !!parsed.settings);
+
+        if (hasValidStructure) {
+          const refCount = Array.isArray(parsed.profileReferences)
+            ? parsed.profileReferences.length
+            : Array.isArray(parsed.references)
+            ? parsed.references.length
+            : 0;
+
           setPendingBackupJSON(text);
           setPendingBackupCounts({
-            clients: parsed.clients.length || 0,
-            products: parsed.products.length || 0,
-            quotes: parsed.quotes?.length || 0,
-            references: parsed.profileReferences?.length || 0,
+            clients: Array.isArray(parsed.clients) ? parsed.clients.length : 0,
+            products: Array.isArray(parsed.products) ? parsed.products.length : 0,
+            quotes: Array.isArray(parsed.quotes) ? parsed.quotes.length : 0,
+            references: refCount,
           });
         } else {
-          setImportStatus({ type: 'error', message: 'Fichier invalide : structure manquante.' });
+          setImportStatus({
+            type: 'error',
+            message: 'Fichier d’importation invalide ou incompatible avec ETOILE ALU.',
+          });
         }
-      } catch (err: unknown) {
-        setImportStatus({ type: 'error', message: `Erreur lecture JSON: ${(err as Error).message}` });
+      } catch {
+        setImportStatus({
+          type: 'error',
+          message: 'Fichier d’importation invalide ou incompatible avec ETOILE ALU.',
+        });
       }
+    };
+    reader.onerror = () => {
+      setImportStatus({
+        type: 'error',
+        message: 'Fichier d’importation invalide ou incompatible avec ETOILE ALU.',
+      });
     };
     reader.readAsText(file);
     e.target.value = '';
@@ -400,15 +495,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
 
           <div>
-            <label className="block text-slate-300 font-semibold mb-1">
-              Prix standard d'une barre (Ar) <span className="text-red-400">*</span>
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-slate-300 font-semibold">
+                Prix standard d'une barre (Ar) <span className="text-red-400">*</span>
+              </label>
+              <span className="text-emerald-400 font-bold font-mono text-xs">
+                {formatAriary(barPriceAr)}
+              </span>
+            </div>
             <input
               type="number"
               min="0"
-              step="5000"
+              step="any"
               value={barPriceAr}
-              onChange={(e) => setBarPriceAr(parseInt(e.target.value, 10) || 240000)}
+              onChange={(e) => setBarPriceAr(parseFloat(e.target.value) || 0)}
               className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-emerald-400 font-mono font-bold text-sm focus:outline-none focus:border-cyan-500 tabular-nums min-h-[44px]"
             />
             <p className="text-[10px] text-slate-400 mt-1">Par défaut : 240 000 Ar</p>
@@ -597,49 +697,53 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
         {/* Export Center Buttons */}
         <div className="space-y-2">
-          <span className="text-xs font-semibold text-cyan-300 block">Exportation des données :</span>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          <span className="text-xs font-semibold text-cyan-300 block">Exporter les données :</span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
             <button
+              type="button"
+              onClick={handleExportJSON}
+              className="p-3.5 rounded-xl bg-gradient-to-r from-teal-500/25 to-cyan-500/25 hover:from-teal-500/35 hover:to-cyan-500/35 border border-cyan-400 text-left text-xs text-cyan-200 transition active:scale-98 flex flex-col justify-between gap-2 shadow-lg shadow-cyan-950/30"
+            >
+              <Download className="w-5 h-5 text-cyan-300" />
+              <div>
+                <span className="font-bold block text-white text-sm">Exporter les données</span>
+                <span className="text-[10px] text-cyan-300">Sauvegarde complète JSON</span>
+              </div>
+            </button>
+
+            <button
+              type="button"
               onClick={handleExportClientsCSV}
               className="p-3 rounded-xl bg-slate-800/90 hover:bg-slate-800 border border-slate-700 text-left text-xs text-slate-200 transition active:scale-98 flex flex-col justify-between gap-2"
             >
               <FileSpreadsheet className="w-4 h-4 text-teal-400" />
               <div>
-                <span className="font-bold block text-white">[Exporter Clients]</span>
-                <span className="text-[10px] text-slate-400">Fichier CSV</span>
+                <span className="font-bold block text-white">Exporter Clients CSV</span>
+                <span className="text-[10px] text-slate-400">Liste clients (Excel / CSV)</span>
               </div>
             </button>
 
             <button
+              type="button"
               onClick={handleExportProductsCSV}
               className="p-3 rounded-xl bg-slate-800/90 hover:bg-slate-800 border border-slate-700 text-left text-xs text-slate-200 transition active:scale-98 flex flex-col justify-between gap-2"
             >
               <FileSpreadsheet className="w-4 h-4 text-sky-400" />
               <div>
-                <span className="font-bold block text-white">[Exporter Produits]</span>
-                <span className="text-[10px] text-slate-400">Fichier CSV</span>
+                <span className="font-bold block text-white">Exporter Produits CSV</span>
+                <span className="text-[10px] text-slate-400">Modèles & profilés</span>
               </div>
             </button>
 
             <button
+              type="button"
               onClick={handleExportQuotesCSV}
               className="p-3 rounded-xl bg-slate-800/90 hover:bg-slate-800 border border-slate-700 text-left text-xs text-slate-200 transition active:scale-98 flex flex-col justify-between gap-2"
             >
               <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
               <div>
-                <span className="font-bold block text-white">[Exporter Devis]</span>
-                <span className="text-[10px] text-slate-400">Fichier CSV</span>
-              </div>
-            </button>
-
-            <button
-              onClick={handleExportJSON}
-              className="p-3 rounded-xl bg-gradient-to-r from-teal-500/20 to-cyan-500/20 hover:from-teal-500/30 hover:to-cyan-500/30 border border-cyan-500/40 text-left text-xs text-cyan-200 transition active:scale-98 flex flex-col justify-between gap-2"
-            >
-              <Download className="w-4 h-4 text-cyan-300" />
-              <div>
-                <span className="font-bold block text-white">[Sauvegarde JSON]</span>
-                <span className="text-[10px] text-cyan-300">Catalogue & Devis</span>
+                <span className="font-bold block text-white">Exporter Devis CSV</span>
+                <span className="text-[10px] text-slate-400">Historique & montants</span>
               </div>
             </button>
           </div>
@@ -647,25 +751,26 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
         {/* Import Center Buttons */}
         <div className="space-y-2 pt-2 border-t border-slate-800">
-          <span className="text-xs font-semibold text-cyan-300 block">Importation des données :</span>
+          <span className="text-xs font-semibold text-cyan-300 block">Importer les données :</span>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <input
                 type="file"
                 ref={jsonFileInputRef}
-                accept=".json"
+                accept=".json,application/json"
                 onChange={handleSelectJSONFile}
                 className="hidden"
               />
               <button
+                type="button"
                 onClick={() => jsonFileInputRef.current?.click()}
-                className="w-full p-3.5 rounded-xl bg-slate-800/90 hover:bg-slate-800 border border-slate-700 text-white font-medium text-xs flex items-center justify-center gap-2 transition active:scale-98 min-h-[48px]"
+                className="w-full p-3.5 rounded-xl bg-gradient-to-r from-cyan-600/30 to-teal-600/30 hover:from-cyan-600/40 hover:to-teal-600/40 border border-cyan-400/50 text-white font-bold text-xs flex items-center justify-center gap-2 transition active:scale-98 min-h-[48px] shadow-lg"
               >
-                <Upload className="w-4 h-4 text-cyan-400" />
-                [Importer Sauvegarde JSON]
+                <Upload className="w-4 h-4 text-cyan-300" />
+                Importer les données (Sauvegarde JSON)
               </button>
               <p className="text-[10px] text-slate-400 text-center mt-1">
-                Restaure références, profils, modèles, devis et clients
+                Restaure références, profilés, modèles, devis, paiements et clients
               </p>
             </div>
 
@@ -673,16 +778,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <input
                 type="file"
                 ref={csvFileInputRef}
-                accept=".csv"
+                accept=".csv,text/csv"
                 onChange={handleSelectCSVFile}
                 className="hidden"
               />
               <button
+                type="button"
                 onClick={() => csvFileInputRef.current?.click()}
                 className="w-full p-3.5 rounded-xl bg-slate-800/90 hover:bg-slate-800 border border-slate-700 text-white font-medium text-xs flex items-center justify-center gap-2 transition active:scale-98 min-h-[48px]"
               >
                 <FileSpreadsheet className="w-4 h-4 text-teal-400" />
-                [Importer Clients CSV]
+                Importer Clients CSV
               </button>
               <p className="text-[10px] text-slate-400 text-center mt-1">Ajoute ou met à jour la liste des clients</p>
             </div>
@@ -696,10 +802,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <div className="bg-slate-900 border border-slate-700 w-full max-w-md rounded-2xl shadow-2xl p-5 text-slate-100 space-y-4">
             <h3 className="text-base font-bold text-white flex items-center gap-2">
               <Database className="w-4 h-4 text-cyan-400" />
-              Aperçu de la Sauvegarde Détectée
+              Confirmation de l’Importation
             </h3>
 
+            {/* Required prominent confirmation text */}
+            <div className="p-3.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-200 text-xs font-semibold leading-relaxed">
+              L’importation remplacera les données actuellement enregistrées. Voulez-vous continuer ?
+            </div>
+
             <div className="p-3.5 rounded-xl bg-slate-800/70 border border-slate-700 text-xs space-y-1.5">
+              <div className="text-[11px] font-bold text-cyan-300 uppercase tracking-wider mb-1">
+                Contenu de la sauvegarde détectée :
+              </div>
               <div className="flex justify-between text-slate-300">
                 <span>Références profils :</span>
                 <strong className="text-white tabular-nums">{pendingBackupCounts.references}</strong>
@@ -720,18 +834,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
             <div className="space-y-2 pt-1">
               <button
-                onClick={() => handleConfirmJSONRestore(false)}
-                className="w-full py-2.5 px-4 rounded-xl bg-cyan-700 hover:bg-cyan-600 text-white font-semibold text-xs transition"
-              >
-                Fusionner (Conserver actuelles + ajouter nouvelles)
-              </button>
-              <button
+                type="button"
                 onClick={() => handleConfirmJSONRestore(true)}
-                className="w-full py-2.5 px-4 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs transition"
+                className="w-full py-2.5 px-4 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs transition shadow-md shadow-amber-950/40"
               >
-                Remplacer toutes les données existantes
+                Continuer l'importation (Remplacer)
               </button>
               <button
+                type="button"
+                onClick={() => handleConfirmJSONRestore(false)}
+                className="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-cyan-300 font-semibold text-xs transition"
+              >
+                Fusionner avec les données actuelles
+              </button>
+              <button
+                type="button"
                 onClick={() => {
                   setPendingBackupJSON(null);
                   setPendingBackupCounts(null);
@@ -792,13 +909,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </div>
 
               <div>
-                <label className="block text-slate-300 font-semibold mb-1">Prix par défaut (Ar)</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-slate-300 font-semibold">Prix par défaut (Ar)</label>
+                  <span className="text-emerald-400 font-bold font-mono text-xs">
+                    {formatAriary(catPrice)}
+                  </span>
+                </div>
                 <input
                   type="number"
                   min="0"
-                  step="5000"
+                  step="any"
                   value={catPrice}
-                  onChange={(e) => setCatPrice(parseInt(e.target.value, 10) || 0)}
+                  onChange={(e) => setCatPrice(parseFloat(e.target.value) || 0)}
                   className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white font-mono tabular-nums min-h-[40px]"
                 />
               </div>
@@ -853,13 +975,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </div>
 
               <div>
-                <label className="block text-slate-300 font-semibold mb-1">Prix au m² (Ar)</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-slate-300 font-semibold">Prix au m² (Ar)</label>
+                  <span className="text-emerald-400 font-bold font-mono text-xs">
+                    {formatAriary(glassPrice)}
+                  </span>
+                </div>
                 <input
                   type="number"
                   min="0"
-                  step="1000"
+                  step="any"
                   value={glassPrice}
-                  onChange={(e) => setGlassPrice(parseInt(e.target.value, 10) || 0)}
+                  onChange={(e) => setGlassPrice(parseFloat(e.target.value) || 0)}
                   className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-emerald-400 font-mono tabular-nums font-bold min-h-[40px]"
                 />
               </div>

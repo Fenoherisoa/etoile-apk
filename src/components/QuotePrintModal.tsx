@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Printer, Share2, Check } from 'lucide-react';
 import { Quote, GlobalSettings } from '../types';
-import { formatAriary } from '../utils/calculationEngine';
+import { formatAriary, formatBarQuantity, formatBarsWithUnit } from '../utils/calculationEngine';
 import logoEtoile from "../assets/images/logo_etoile.png";
 
 interface QuotePrintModalProps {
@@ -36,7 +36,7 @@ export const QuotePrintModal: React.FC<QuotePrintModalProps> = ({
       item.dimensions.forEach((d) => {
         text += `   • ${d.widthMm} × ${d.heightMm} mm (Qté: ${d.quantity})\n`;
       });
-      text += `   Profils: ${item.calculationResult.profileCalculations.map((p) => `${p.categoryName} ${p.profileCode} (${p.barsNeeded} barres)`).join(', ')}\n`;
+      text += `   Profils: ${item.calculationResult.profileCalculations.map((p) => `${p.categoryName} ${p.profileCode} (${formatBarsWithUnit(p.barsNeeded)})`).join(', ')}\n`;
       text += `   Total : ${formatAriary(item.calculationResult.totalProductPriceAr)}\n\n`;
     });
 
@@ -186,7 +186,7 @@ export const QuotePrintModal: React.FC<QuotePrintModalProps> = ({
                       {item.dimensions.reduce((acc, d) => acc + d.quantity, 0)}
                     </td>
                     <td className="py-3 px-3 text-right tabular-nums text-slate-700">
-                      {item.calculationResult.totalBarsNeeded} barres
+                      {formatBarsWithUnit(item.calculationResult.totalBarsNeeded)}
                     </td>
                     <td className="py-3 px-3 text-right tabular-nums font-bold text-slate-900">
                       {formatAriary(item.calculationResult.totalProductPriceAr)}

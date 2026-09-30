@@ -888,12 +888,13 @@ class StorageService {
 
   // Backup & Restore
   public createBackupJSON(): string {
-    const backup: BackupData = {
+    const backup: BackupData & { references: ProfileReference[] } = {
       version: '3.0',
       exportDate: new Date().toISOString(),
       settings: this.getSettings(),
       categories: this.getCategories(),
       profileReferences: this.getReferences(),
+      references: this.getReferences(),
       products: this.getProducts(),
       glassTypes: this.getGlassTypes(),
       clients: this.getClients(),
@@ -920,69 +921,126 @@ class StorageService {
     };
   } {
     try {
-      const data = JSON.parse(jsonData) as BackupData;
-      if (!data.clients || !data.products) {
+      const data = JSON.parse(jsonData) as any;
+      if (!data || typeof data !== 'object') {
         return {
           success: false,
-          message: 'Format de fichier invalide.',
+          message: 'Format de fichier JSON invalide.',
+          counts: { clients: 0, products: 0, quotes: 0, payments: 0, receipts: 0, references: 0 },
+        };
+      }
+
+      const refsToRestore: ProfileReference[] = Array.isArray(data.profileReferences)
+        ? data.profileReferences
+        : Array.isArray(data.references)
+        ? data.references
+        : [];
+
+      const clientsToRestore: Client[] = Array.isArray(data.clients) ? data.clients : [];
+      const productsToRestore: ProductTemplate[] = Array.isArray(data.products) ? data.products : [];
+      const quotesToRestore: Quote[] = Array.isArray(data.quotes) ? data.quotes : [];
+      const paymentsToRestore: PaymentRecord[] = Array.isArray(data.payments) ? data.payments : [];
+      const receiptsToRestore: PaymentReceipt[] = Array.isArray(data.receipts) ? data.receipts : [];
+      const categoriesToRestore: Category[] = Array.isArray(data.categories) ? data.categories : [];
+      const glassTypesToRestore: GlassType[] = Array.isArray(data.glassTypes) ? data.glassTypes : [];
+
+      const totalItemsFound =
+        refsToRestore.length +
+        clientsToRestore.length +
+        productsToRestore.length +
+        quotesToRestore.length +
+        categoriesToRestore.length;
+
+      if (totalItemsFound === 0 && !data.settings) {
+        return {
+          success: false,
+          message: 'Le fichier sélectionné ne contient aucune donnée compatible avec ETOILE ALU.',
           counts: { clients: 0, products: 0, quotes: 0, payments: 0, receipts: 0, references: 0 },
         };
       }
 
       if (overwrite) {
-        if (data.settings) this.saveSettings(data.settings);
-        if (data.categories) this.setItem(STORAGE_KEYS.CATEGORIES, data.categories);
-        if (data.profileReferences) this.setItem(STORAGE_KEYS.REFERENCES, data.profileReferences);
-        if (data.glassTypes) this.setItem(STORAGE_KEYS.GLASS_TYPES, data.glassTypes);
-        this.setItem(STORAGE_KEYS.PRODUCTS, data.products);
-        this.setItem(STORAGE_KEYS.CLIENTS, data.clients);
-        this.setItem(STORAGE_KEYS.QUOTES, data.quotes || []);
-        this.setItem(STORAGE_KEYS.PAYMENTS, data.payments || []);
-        this.setItem(STORAGE_KEYS.RECEIPTS, data.receipts || []);
+        if (data.settings && typeof data.settings === 'object') {
+          this.saveSettings({ ...DEFAULT_SETTINGS, ...data.settings });
+        }
+        if (categoriesToRestore.length > 0) this.setItem(STORAGE_KEYS.CATEGORIES, categoriesToRestore);
+        if (refsToRestore.length > 0) this.setItem(STORAGE_KEYS.REFERENCES, refsToRestore);
+        if (glassTypesToRestore.length > 0) this.setItem(STORAGE_KEYS.GLASS_TYPES, glassTypesToRestore);
+        if (productsToRestore.length > 0) this.setItem(STORAGE_KEYS.PRODUCTS, productsToRestore);
+        if (clientsToRestore.length > 0) this.setItem(STORAGE_KEYS.CLIENTS, clientsToRestore);
+        this.setItem(STORAGE_KEYS.QUOTES, quotesToRestore);
+        this.setItem(STORAGE_KEYS.PAYMENTS, paymentsToRestore);
+        this.setItem(STORAGE_KEYS.RECEIPTS, receiptsToRestore);
       } else {
-        const existingClients = this.getClients();
-        const clientIds = new Set(existingClients.map((c) => c.id));
-        this.setItem(STORAGE_KEYS.CLIENTS, [...existingClients, ...data.clients.filter((c) => !clientIds.has(c.id))]);
-
-        const existingProducts = this.getProducts();
-        const productIds = new Set(existingProducts.map((p) => p.id));
-        this.setItem(STORAGE_KEYS.PRODUCTS, [...existingProducts, ...data.products.filter((p) => !productIds.has(p.id))]);
-
-        if (data.profileReferences) {
-          const existingRefs = this.getReferences();
-          const refIds = new Set(existingRefs.map((r) => r.id));
-          this.setItem(STORAGE_KEYS.REFERENCES, [...existingRefs, ...data.profileReferences.filter((r) => !refIds.has(r.id))]);
+        if (data.settings && typeof data.settings === 'object') {
+          this.saveSettings({ ...this.getSettings(), ...data.settings });
         }
 
-        const existingQuotes = this.getQuotes();
-        const quoteIds = new Set(existingQuotes.map((q) => q.id));
-        this.setItem(STORAGE_KEYS.QUOTES, [...existingQuotes, ...(data.quotes || []).filter((q) => !quoteIds.has(q.id))]);
+        if (categoriesToRestore.length > 0) {
+          const existingCats = this.getCategories();
+          const catIds = new Set(existingCats.map((c) => c.id));
+          this.setItem(STORAGE_KEYS.CATEGORIES, [...existingCats, ...categoriesToRestore.filter((c) => !catIds.has(c.id))]);
+        }
 
-        const existingPayments = this.getPayments();
-        const payIds = new Set(existingPayments.map((p) => p.id));
-        this.setItem(STORAGE_KEYS.PAYMENTS, [...existingPayments, ...(data.payments || []).filter((p) => !payIds.has(p.id))]);
+        if (refsToRestore.length > 0) {
+          const existingRefs = this.getReferences();
+          const refIds = new Set(existingRefs.map((r) => r.id));
+          this.setItem(STORAGE_KEYS.REFERENCES, [...existingRefs, ...refsToRestore.filter((r) => !refIds.has(r.id))]);
+        }
 
-        const existingReceipts = this.getReceipts();
-        const recIds = new Set(existingReceipts.map((r) => r.id));
-        this.setItem(STORAGE_KEYS.RECEIPTS, [...existingReceipts, ...(data.receipts || []).filter((r) => !recIds.has(r.id))]);
+        if (glassTypesToRestore.length > 0) {
+          const existingGlass = this.getGlassTypes();
+          const glassIds = new Set(existingGlass.map((g) => g.id));
+          this.setItem(STORAGE_KEYS.GLASS_TYPES, [...existingGlass, ...glassTypesToRestore.filter((g) => !glassIds.has(g.id))]);
+        }
+
+        if (clientsToRestore.length > 0) {
+          const existingClients = this.getClients();
+          const clientIds = new Set(existingClients.map((c) => c.id));
+          this.setItem(STORAGE_KEYS.CLIENTS, [...existingClients, ...clientsToRestore.filter((c) => !clientIds.has(c.id))]);
+        }
+
+        if (productsToRestore.length > 0) {
+          const existingProducts = this.getProducts();
+          const productIds = new Set(existingProducts.map((p) => p.id));
+          this.setItem(STORAGE_KEYS.PRODUCTS, [...existingProducts, ...productsToRestore.filter((p) => !productIds.has(p.id))]);
+        }
+
+        if (quotesToRestore.length > 0) {
+          const existingQuotes = this.getQuotes();
+          const quoteIds = new Set(existingQuotes.map((q) => q.id));
+          this.setItem(STORAGE_KEYS.QUOTES, [...existingQuotes, ...quotesToRestore.filter((q) => !quoteIds.has(q.id))]);
+        }
+
+        if (paymentsToRestore.length > 0) {
+          const existingPayments = this.getPayments();
+          const payIds = new Set(existingPayments.map((p) => p.id));
+          this.setItem(STORAGE_KEYS.PAYMENTS, [...existingPayments, ...paymentsToRestore.filter((p) => !payIds.has(p.id))]);
+        }
+
+        if (receiptsToRestore.length > 0) {
+          const existingReceipts = this.getReceipts();
+          const recIds = new Set(existingReceipts.map((r) => r.id));
+          this.setItem(STORAGE_KEYS.RECEIPTS, [...existingReceipts, ...receiptsToRestore.filter((r) => !recIds.has(r.id))]);
+        }
       }
 
       return {
         success: true,
-        message: 'Données Office importées avec succès !',
+        message: 'Données ETOILE ALU importées et restaurées avec succès !',
         counts: {
-          clients: data.clients.length,
-          products: data.products.length,
-          quotes: data.quotes?.length || 0,
-          payments: data.payments?.length || 0,
-          receipts: data.receipts?.length || 0,
-          references: data.profileReferences?.length || 0,
+          clients: clientsToRestore.length,
+          products: productsToRestore.length,
+          quotes: quotesToRestore.length,
+          payments: paymentsToRestore.length,
+          receipts: receiptsToRestore.length,
+          references: refsToRestore.length,
         },
       };
     } catch (e: unknown) {
       return {
         success: false,
-        message: `Erreur: ${(e as Error).message}`,
+        message: `Erreur d'importation : ${(e as Error).message}`,
         counts: { clients: 0, products: 0, quotes: 0, payments: 0, receipts: 0, references: 0 },
       };
     }

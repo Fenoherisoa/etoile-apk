@@ -510,15 +510,21 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
                 )}
 
                 <div className={formUnitType === 'barre' ? '' : 'col-span-2'}>
-                  <label className="block text-slate-300 font-semibold mb-1">
-                    Prix unitaire (Ar) {formUnitType === 'barre' ? 'par barre' : `par ${formUnitType}`}
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-slate-300 font-semibold">
+                      Prix unitaire (Ar) {formUnitType === 'barre' ? 'par barre' : `par ${formUnitType}`}
+                    </label>
+                    <span className="text-emerald-400 font-bold font-mono text-xs">
+                      {formatAriary(formUnitPriceAr)}
+                    </span>
+                  </div>
                   <input
                     type="number"
                     min="0"
-                    step="5000"
+                    step="any"
                     value={formUnitPriceAr}
-                    onChange={(e) => setFormUnitPriceAr(parseInt(e.target.value, 10) || 0)}
+                    onChange={(e) => setFormUnitPriceAr(parseFloat(e.target.value) || 0)}
+                    placeholder="Ex: 16000, 18000, 240000..."
                     className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-emerald-400 font-mono tabular-nums font-bold focus:outline-none focus:border-cyan-500 min-h-[40px]"
                   />
                 </div>
@@ -589,10 +595,10 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
                     </label>
                     <input
                       type="number"
-                      min="1"
-                      max="100"
+                      min="0.01"
+                      step="any"
                       value={formFixedQuantity}
-                      onChange={(e) => setFormFixedQuantity(parseInt(e.target.value, 10) || 1)}
+                      onChange={(e) => setFormFixedQuantity(parseFloat(e.target.value) || 0)}
                       className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-cyan-300 font-bold text-xs"
                     />
                     <p className="text-[10px] text-slate-400 mt-1">

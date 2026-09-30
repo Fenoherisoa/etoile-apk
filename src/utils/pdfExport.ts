@@ -3,7 +3,7 @@ import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 
 import { Quote, PaymentReceipt, GlobalSettings } from '../types';
-import { formatAriary } from './calculationEngine';
+import { formatAriary, formatBarQuantity } from './calculationEngine';
 
 /**
  * Détecte si l'application tourne dans Capacitor / Android APK.
@@ -270,7 +270,7 @@ export async function generateQuotePDF(
     const profilesDesc =
       item.calculationResult.profileCalculations
         .map(
-          (p) => `${p.categoryName}: ${p.profileCode}`
+          (p) => `${p.categoryName}: ${p.profileCode} (${formatBarQuantity(p.barsNeeded)} b.)`
         )
         .join(' · ');
 
@@ -665,7 +665,7 @@ export async function generateQuotePDF(
   }
 
   // =========================
-  // WEB / PC
+  // WEB / PC (QUOTE)
   // =========================
 
   if (action === 'download') {
@@ -679,10 +679,27 @@ export async function generateQuotePDF(
     const blobUrl =
       doc.output('bloburl');
 
-    window.open(
-      blobUrl,
-      '_blank'
-    );
+    try {
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = '0';
+      iframe.src = String(blobUrl);
+      document.body.appendChild(iframe);
+      iframe.onload = () => {
+        try {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+        } catch {
+          window.print();
+        }
+      };
+    } catch {
+      doc.save(filename);
+    }
 
     return;
   }
@@ -1148,7 +1165,7 @@ export async function generateReceiptPDF(
   }
 
   // =========================
-  // WEB / PC
+  // WEB / PC (RECEIPT)
   // =========================
 
   if (action === 'download') {
@@ -1162,10 +1179,27 @@ export async function generateReceiptPDF(
     const blobUrl =
       doc.output('bloburl');
 
-    window.open(
-      blobUrl,
-      '_blank'
-    );
+    try {
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = '0';
+      iframe.src = String(blobUrl);
+      document.body.appendChild(iframe);
+      iframe.onload = () => {
+        try {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+        } catch {
+          window.print();
+        }
+      };
+    } catch {
+      doc.save(filename);
+    }
 
     return;
   }

@@ -238,11 +238,11 @@ export function calculateDetailedProduct(
         : settings.standardBarPriceAr;
 
     const cuttingPlans = optimizeBarCutting(cuts, effectiveBarLength, settings.sawKerfMm || 4);
-    const barsNeeded = cuttingPlans.length;
-    const barsCostAr = barsNeeded * effectiveBarPrice;
+    const barsNeeded = calculateDecimalBarsNeeded(cuttingPlans, effectiveBarLength);
+    const barsCostAr = Math.round(barsNeeded * effectiveBarPrice);
     const totalLinearMm = cuts.reduce((acc, c) => acc + c.lengthMm, 0);
 
-    totalBarsNeeded += barsNeeded;
+    totalBarsNeeded = Math.round((totalBarsNeeded + barsNeeded) * 100) / 100;
     totalBarsCostAr += barsCostAr;
 
     profileCalculations.push({
@@ -290,23 +290,127 @@ export function calculateDetailedProduct(
 }
 
 /**
- * Format currency with Malagasy Ariary standard spaces
- * Example: 1470000 -> "1 470 000 Ar"
+ * Calcule exactement le nombre réel décimal de barres nécessaires.
+ * Gère les fractions de barre par quart (0.25, 0.50, 0.75, 1.00) :
+ * - 1 barre = 1
+ * - 1 barre + 0,25 barre = 1.25
+ * - 1 barre + 0,50 barre = 1.50
+ * - 1 barre + 0,75 barre = 1.75
+ * - 2 barres + 0,25 barre = 2.25
+ * Le calcul est exact, sans arrondi intempestif.
  */
-export function formatAriary(amount: number): string {
-  if (isNaN(amount) || amount === null || amount === undefined) {
-    return '0 Ar';
+export function calculateDecimalBarsNeeded(
+  cuttingPlans: BarCutPlan[],
+  barLengthMm: number
+): number {
+  if (!cuttingPlans || cuttingPlans.length === 0 || barLengthMm <= 0) {
+    return 0;
   }
-  const rounded = Math.round(amount);
-  return `${rounded.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} Ar`;
+
+  const numBars = cuttingPlans.length;
+  // Les barres précédant la dernière sont complètes (1.0 chacune)
+  const fullBars = numBars - 1;
+  const lastBar = cuttingPlans[numBars - 1];
+
+  if (!lastBar || lastBar.usedLengthMm <= 0) {
+    return fullBars;
+  }
+
+  const ratio = lastBar.usedLengthMm / barLengthMm;
+  let fraction: number;
+
+  if (ratio <= 0.25) {
+    fraction = 0.25;
+  } else if (ratio <= 0.50) {
+    fraction = 0.50;
+  } else if (ratio <= 0.75) {
+    fraction = 0.75;
+  } else {
+    fraction = 1.0;
+  }
+
+  const total = fullBars + fraction;
+  return Math.round(total * 100) / 100;
 }
 
 /**
- * Format number with space separators
+ * Affiche la quantité de barres avec la convention française :
+ * 1 -> 1
+ * 1.25 -> 1,25
+ * 1.5 -> 1,50
+ * 1.75 -> 1,75
+ * 2 -> 2
  */
-export function formatNumber(num: number): string {
-  if (isNaN(num) || num === null || num === undefined) {
+export function formatBarQuantity(qty: number | null | undefined): string {
+  if (qty === null || qty === undefined || isNaN(qty)) {
     return '0';
   }
-  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  if (Number.isInteger(qty)) {
+    return qty.toString();
+  }
+  return qty.toFixed(2).replace('.', ',');
+}
+
+/**
+ * Affiche la quantité avec le mot barre / barres
+ * Ex: "1 barre", "1,25 barres", "1,50 barres", "2 barres"
+ */
+export function formatBarsWithUnit(qty: number | null | undefined): string {
+  const n = qty ?? 0;
+  const formatted = formatBarQuantity(n);
+  return `${formatted} ${n > 1 ? 'barres' : 'barre'}`;
+}
+
+/**
+ * Fonction centrale de formatage des montants demandée par la spécification.
+ * Utilisée partout où un montant est affiché.
+ * Gère correctement :
+ * - null, undefined, 0
+ * - nombres entiers (ex: 5000 -> "5 000 Ar", 240000 -> "240 000 Ar")
+ * - nombres décimaux si nécessaire
+ * - grandes valeurs
+ * Utilise l'espace comme séparateur de milliers.
+ */
+export function formatAmount(
+  value: number | string | null | undefined,
+  suffix: string = 'Ar'
+): string {
+  if (value === null || value === undefined || value === '') {
+    return suffix ? `0 ${suffix}`.trim() : '0';
+  }
+  const cleanStr = String(value).replace(/\s/g, '').replace(',', '.');
+  const num = typeof value === 'number' ? value : parseFloat(cleanStr);
+  if (isNaN(num)) {
+    return suffix ? `0 ${suffix}`.trim() : '0';
+  }
+
+  let formatted: string;
+  if (Number.isInteger(num)) {
+    formatted = num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  } else {
+    const parts = num.toFixed(2).split('.');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+    const dec = parts[1].replace(/0+$/, '');
+    formatted = dec ? `${parts[0]},${dec}` : parts[0];
+  }
+
+  return suffix ? `${formatted} ${suffix}`.trim() : formatted;
+}
+
+/**
+ * Format currency with Malagasy Ariary standard spaces
+ * Example: 16000 -> "16 000 Ar"
+ * Example: 240000 -> "240 000 Ar"
+ * Example: 1250000 -> "1 250 000 Ar"
+ */
+export function formatAriary(amount: number | string | null | undefined): string {
+  return formatAmount(amount, 'Ar');
+}
+
+/**
+ * Format any number with space thousands separator
+ * Example: 1250000 -> "1 250 000"
+ */
+export function formatNumber(num: number | string | null | undefined): string {
+  return formatAmount(num, '');
 }

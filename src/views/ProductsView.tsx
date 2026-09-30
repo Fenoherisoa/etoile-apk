@@ -195,6 +195,16 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
     setFormComponents(updated);
   };
 
+  // Update component custom price
+  const handleUpdateComponentPrice = (index: number, newPrice: number) => {
+    const updated = [...formComponents];
+    updated[index] = {
+      ...updated[index],
+      unitPriceAr: Math.max(0, newPrice),
+    };
+    setFormComponents(updated);
+  };
+
   const handleSaveProduct = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formName.trim()) {
@@ -466,11 +476,25 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                                 ) : (
                                   catRefs.map((r) => (
                                     <option key={r.id} value={r.id}>
-                                      {r.referenceCode} — {r.name} ({formatAriary(r.unitPriceAr || 0)} / {r.unitType})
+                                      {r.referenceCode} — {r.name}
                                     </option>
                                   ))
                                 )}
                               </select>
+
+                              {/* Custom Price Field */}
+                              <div className="flex items-center gap-1 text-[11px] text-slate-300">
+                                <span>Prix :</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="any"
+                                  value={comp.unitPriceAr}
+                                  onChange={(e) => handleUpdateComponentPrice(idx, parseFloat(e.target.value) || 0)}
+                                  className="w-24 px-1.5 py-1 rounded bg-slate-800 border border-slate-700 text-emerald-400 font-mono font-bold text-xs text-right tabular-nums"
+                                />
+                                <span className="text-slate-400">Ar / {comp.unitType}</span>
+                              </div>
 
                               {/* Rule customizer */}
                               {comp.unitType === 'barre' ? (
@@ -479,31 +503,31 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                                   <input
                                     type="number"
                                     min="0"
-                                    max="8"
+                                    step="any"
                                     value={comp.rule.formulaWidthMultiplier}
                                     onChange={(e) =>
                                       handleUpdateComponentRule(
                                         idx,
                                         'formulaWidthMultiplier',
-                                        parseInt(e.target.value, 10) || 0
+                                        parseFloat(e.target.value) || 0
                                       )
                                     }
-                                    className="w-10 px-1 py-0.5 rounded bg-slate-800 border border-slate-700 text-cyan-300 font-bold text-center"
+                                    className="w-12 px-1 py-0.5 rounded bg-slate-800 border border-slate-700 text-cyan-300 font-bold text-center"
                                   />
                                   <span>+ H×</span>
                                   <input
                                     type="number"
                                     min="0"
-                                    max="8"
+                                    step="any"
                                     value={comp.rule.formulaHeightMultiplier}
                                     onChange={(e) =>
                                       handleUpdateComponentRule(
                                         idx,
                                         'formulaHeightMultiplier',
-                                        parseInt(e.target.value, 10) || 0
+                                        parseFloat(e.target.value) || 0
                                       )
                                     }
-                                    className="w-10 px-1 py-0.5 rounded bg-slate-800 border border-slate-700 text-cyan-300 font-bold text-center"
+                                    className="w-12 px-1 py-0.5 rounded bg-slate-800 border border-slate-700 text-cyan-300 font-bold text-center"
                                   />
                                 </div>
                               ) : (
@@ -511,17 +535,17 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                                   <span>Qté :</span>
                                   <input
                                     type="number"
-                                    min="1"
-                                    max="50"
+                                    min="0.01"
+                                    step="any"
                                     value={comp.rule.fixedQuantity || 1}
                                     onChange={(e) =>
                                       handleUpdateComponentRule(
                                         idx,
                                         'fixedQuantity',
-                                        parseInt(e.target.value, 10) || 1
+                                        parseFloat(e.target.value) || 0
                                       )
                                     }
-                                    className="w-12 px-1 py-0.5 rounded bg-slate-800 border border-slate-700 text-cyan-300 font-bold text-center"
+                                    className="w-14 px-1 py-0.5 rounded bg-slate-800 border border-slate-700 text-cyan-300 font-bold text-center"
                                   />
                                 </div>
                               )}
